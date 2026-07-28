@@ -50,8 +50,166 @@
   .company-footer .cf-line a:hover{text-decoration:underline;}
   .company-footer .cf-sep{margin:0 8px;color:#4a5563;}
 </style>
+
+    <!-- Netlify Identity: authentication widget for this static site -->
+    <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    <style>
+        /* Simple client-side access gate. Page content stays hidden until Netlify Identity confirms a session. */
+        #protected-content[hidden],
+        #auth-gate[hidden],
+        #auth-session[hidden] {
+            display: none !important;
+        }
+
+        .auth-gate {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483000;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background:
+                radial-gradient(circle at top left, rgba(41, 70, 202, 0.22), transparent 38%),
+                linear-gradient(135deg, #0f1c3f 0%, #1a2a5e 100%);
+            font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        }
+
+        .auth-card {
+            width: min(100%, 430px);
+            padding: 34px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 16px;
+            background: #ffffff;
+            box-shadow: 0 24px 70px rgba(5, 13, 38, 0.34);
+            text-align: center;
+        }
+
+        .auth-brand {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 104px;
+            height: 42px;
+            margin-bottom: 24px;
+            padding: 0 16px;
+            border-radius: 9px;
+            background: #2946ca;
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+        }
+
+        .auth-card h1 {
+            margin: 0 0 10px;
+            color: #111827;
+            font-size: 25px;
+            line-height: 1.25;
+        }
+
+        .auth-card p {
+            margin: 0;
+            color: #4b5563;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .auth-login-button {
+            width: 100%;
+            margin-top: 24px;
+            padding: 12px 18px;
+            border: 0;
+            border-radius: 8px;
+            background: #2946ca;
+            color: #ffffff;
+            font: inherit;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s ease, transform 0.15s ease;
+        }
+
+        .auth-login-button:hover:not(:disabled) {
+            background: #2039aa;
+            transform: translateY(-1px);
+        }
+
+        .auth-login-button:disabled {
+            cursor: wait;
+            opacity: 0.62;
+        }
+
+        .auth-status {
+            min-height: 20px;
+            margin-top: 14px !important;
+            color: #667085 !important;
+            font-size: 12.5px !important;
+        }
+
+        .auth-status.auth-error {
+            color: #b42318 !important;
+        }
+
+        .auth-session {
+            position: fixed;
+            top: 12px;
+            right: 14px;
+            z-index: 2147482000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: calc(100vw - 28px);
+            padding: 7px 8px 7px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: 0 4px 16px rgba(15, 28, 63, 0.12);
+            font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        }
+
+        .auth-user-email {
+            overflow: hidden;
+            color: #4b5563;
+            font-size: 12px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .auth-logout-button {
+            padding: 7px 11px;
+            border: 1px solid #d0d5dd;
+            border-radius: 999px;
+            background: #ffffff;
+            color: #344054;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .auth-logout-button:hover {
+            background: #f2f4f7;
+        }
+
+        @media (max-width: 560px) {
+            .auth-card {
+                padding: 28px 22px;
+            }
+
+            .auth-session {
+                top: 8px;
+                right: 8px;
+            }
+
+            .auth-user-email {
+                display: none;
+            }
+        }
+    </style>
+
 </head>
 <body>
+    <div id="protected-content" hidden>
 
 <div class="topbar">
   <img src="alma-logo.png" alt="ALMA">
@@ -87,6 +245,110 @@
     </div>
   </div>
 </div>
+
+    </div>
+
+
+    <!-- Login gate shown until Netlify Identity confirms an authenticated user -->
+    <div id="auth-gate" class="auth-gate" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+        <div class="auth-card">
+            <div class="auth-brand" aria-label="ALMA">ALMA</div>
+            <h1 id="auth-title">Partnerzugang</h1>
+            <p>Bitte melden Sie sich an, um die Positionsübersicht zu öffnen.</p>
+            <button id="auth-login-button" class="auth-login-button" type="button" disabled>Anmeldung wird geprüft …</button>
+            <p id="auth-status" class="auth-status">Dieses Dashboard ist nur für eingeladene Partner zugänglich.</p>
+        </div>
+    </div>
+
+    <div id="auth-session" class="auth-session" hidden aria-label="Angemeldete Sitzung">
+        <span id="auth-user-email" class="auth-user-email"></span>
+        <button id="auth-logout-button" class="auth-logout-button" type="button">Abmelden</button>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            var content = document.getElementById('protected-content');
+            var gate = document.getElementById('auth-gate');
+            var loginButton = document.getElementById('auth-login-button');
+            var logoutButton = document.getElementById('auth-logout-button');
+            var session = document.getElementById('auth-session');
+            var userEmail = document.getElementById('auth-user-email');
+            var status = document.getElementById('auth-status');
+
+            function showAuthenticated(user) {
+                content.hidden = false;
+                gate.hidden = true;
+                session.hidden = false;
+                userEmail.textContent = user && user.email ? user.email : 'Angemeldet';
+                document.body.style.overflow = '';
+            }
+
+            function showLogin() {
+                content.hidden = true;
+                gate.hidden = false;
+                session.hidden = true;
+                userEmail.textContent = '';
+                loginButton.disabled = false;
+                loginButton.textContent = 'Anmelden';
+                status.textContent = 'Dieses Dashboard ist nur für eingeladene Partner zugänglich.';
+                status.classList.remove('auth-error');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function showIdentityError(message) {
+                content.hidden = true;
+                gate.hidden = false;
+                session.hidden = true;
+                loginButton.disabled = true;
+                loginButton.textContent = 'Anmeldung nicht verfügbar';
+                status.textContent = message;
+                status.classList.add('auth-error');
+                document.body.style.overflow = 'hidden';
+            }
+
+            document.body.style.overflow = 'hidden';
+
+            if (!window.netlifyIdentity) {
+                showIdentityError('Netlify Identity konnte nicht geladen werden. Bitte laden Sie die Seite erneut.');
+                return;
+            }
+
+            loginButton.addEventListener('click', function () {
+                window.netlifyIdentity.open('login');
+            });
+
+            logoutButton.addEventListener('click', function () {
+                window.netlifyIdentity.logout();
+            });
+
+            window.netlifyIdentity.on('init', function (user) {
+                if (user) {
+                    showAuthenticated(user);
+                } else {
+                    showLogin();
+                }
+            });
+
+            window.netlifyIdentity.on('login', function (user) {
+                showAuthenticated(user);
+                window.netlifyIdentity.close();
+            });
+
+            window.netlifyIdentity.on('logout', function () {
+                showLogin();
+            });
+
+            window.netlifyIdentity.on('error', function (error) {
+                console.error('Netlify Identity error:', error);
+                status.textContent = 'Die Anmeldung ist fehlgeschlagen. Bitte versuchen Sie es erneut.';
+                status.classList.add('auth-error');
+            });
+
+            window.netlifyIdentity.setLocale('de');
+        }());
+    </script>
 
 </body>
 </html>
