@@ -684,10 +684,17 @@
             display: none !important;
         }
 
+        /* Ensure the Netlify Identity modal always stays above the custom login gate. */
+        #netlify-identity-widget,
+        iframe#netlify-identity-widget {
+            position: fixed !important;
+            z-index: 2147483647 !important;
+        }
+
         .auth-gate {
             position: fixed;
             inset: 0;
-            z-index: 1000;
+            z-index: 50;
             display: grid;
             place-items: center;
             padding: 24px;
@@ -777,7 +784,7 @@
             position: fixed;
             top: 12px;
             right: 14px;
-            z-index: 900;
+            z-index: 40;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -1513,6 +1520,8 @@
             function showAuthenticated(user) {
                 content.hidden = false;
                 gate.hidden = true;
+                gate.style.visibility = '';
+                gate.style.pointerEvents = '';
                 session.hidden = false;
                 userEmail.textContent = user && user.email ? user.email : 'Angemeldet';
                 document.body.style.overflow = '';
@@ -1521,6 +1530,8 @@
             function showLogin() {
                 content.hidden = true;
                 gate.hidden = false;
+                gate.style.visibility = '';
+                gate.style.pointerEvents = '';
                 session.hidden = true;
                 userEmail.textContent = '';
                 loginButton.disabled = false;
@@ -1548,17 +1559,75 @@
                 return;
             }
 
-            loginButton.addEventListener('click', function () {
-                gate.style.zIndex = '1000';
-                window.netlifyIdentity.open('login');
+            function forceIdentityWidgetToFront() {
+                var widget = document.getElementById('netlify-identity-widget');
+
+                if (widget) {
+                    widget.style.setProperty('position', 'fixed', 'important');
+                    widget.style.setProperty('z-index', '2147483647', 'important');
+                    widget.style.setProperty('pointer-events', 'auto', 'important');
+                }
+
+                return Boolean(widget);
+            }
+
+            function restoreGateAfterFailedOpen() {
+                if (!window.netlifyIdentity.currentUser()) {
+                    gate.hidden = false;
+                    gate.style.visibility = '';
+                    gate.style.pointerEvents = '';
+                    loginButton.disabled = false;
+                    loginButton.textContent = 'Anmelden';
+                    status.textContent = 'Das Anmeldefenster konnte nicht geöffnet werden. Bitte laden Sie die Seite neu.';
+                    status.classList.add('auth-error');
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+
+            loginButton.addEventListener('click', function (event) {
+                event.preventDefault();
+
+                /*
+                 * Hide the custom gate before opening Netlify Identity.
+                 * This prevents the gate from intercepting clicks or covering
+                 * the Identity iframe, regardless of either component's z-index.
+                 */
+                loginButton.disabled = true;
+                loginButton.textContent = 'Anmeldung wird geöffnet …';
+                gate.style.visibility = 'hidden';
+                gate.style.pointerEvents = 'none';
+                document.body.style.overflow = '';
+
+                try {
+                    window.netlifyIdentity.open('login');
+
+                    window.setTimeout(function () {
+                        if (!forceIdentityWidgetToFront()) {
+                            restoreGateAfterFailedOpen();
+                        }
+                    }, 800);
+                } catch (error) {
+                    console.error('Could not open Netlify Identity:', error);
+                    restoreGateAfterFailedOpen();
+                }
             });
 
             window.netlifyIdentity.on('open', function () {
-                gate.style.zIndex = '1000';
+                gate.style.visibility = 'hidden';
+                gate.style.pointerEvents = 'none';
+                document.body.style.overflow = '';
+                window.setTimeout(forceIdentityWidgetToFront, 0);
+                window.setTimeout(forceIdentityWidgetToFront, 100);
             });
 
             window.netlifyIdentity.on('close', function () {
-                gate.style.zIndex = '1000';
+                if (window.netlifyIdentity.currentUser()) {
+                    showAuthenticated(window.netlifyIdentity.currentUser());
+                } else {
+                    gate.style.visibility = '';
+                    gate.style.pointerEvents = '';
+                    showLogin();
+                }
             });
 
             logoutButton.addEventListener('click', function () {
