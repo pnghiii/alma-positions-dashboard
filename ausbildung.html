@@ -633,7 +633,7 @@
         .auth-gate {
             position: fixed;
             inset: 0;
-            z-index: 2147483000;
+            z-index: 1000;
             display: grid;
             place-items: center;
             padding: 24px;
@@ -723,7 +723,7 @@
             position: fixed;
             top: 12px;
             right: 14px;
-            z-index: 2147482000;
+            z-index: 900;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -4306,7 +4306,16 @@
             }
 
             loginButton.addEventListener('click', function () {
+                gate.style.zIndex = '1000';
                 window.netlifyIdentity.open('login');
+            });
+
+            window.netlifyIdentity.on('open', function () {
+                gate.style.zIndex = '1000';
+            });
+
+            window.netlifyIdentity.on('close', function () {
+                gate.style.zIndex = '1000';
             });
 
             logoutButton.addEventListener('click', function () {
