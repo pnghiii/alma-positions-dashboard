@@ -1,0 +1,8 @@
+{
+  "name": "alma-positions-dashboard",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@netlify/identity": "latest"
+  }
+}
